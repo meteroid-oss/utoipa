@@ -1,10 +1,9 @@
+use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use serde::{Serialize, Deserialize};
 
 #[test]
 #[cfg(feature = "tagged_discriminator")]
 fn derive_enum_tagged_discriminator() {
-
     #[derive(ToSchema, Serialize, Deserialize)]
     struct OperationStatePending {
         id: String,
@@ -61,18 +60,18 @@ fn derive_enum_tagged_discriminator_complex() {
     enum ComplexEnum {
         #[serde(rename = "renamed_variant")]
         VariantRef(Item),
-        
+
         InlineVariant {
-            value: i32
-        }
+            value: i32,
+        },
     }
-    
+
     let schema = <ComplexEnum as utoipa::PartialSchema>::schema();
     let value = serde_json::to_value(schema).unwrap();
 
     // Inline variants are NOT added to discriminator mapping, but have the tag injected.
     // Ref variants are added to mapping and are bare refs in oneOf.
-    
+
     let expected = serde_json::json!({
       "discriminator": {
         "mapping": {

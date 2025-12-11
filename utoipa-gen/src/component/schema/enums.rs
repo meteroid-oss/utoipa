@@ -5,6 +5,7 @@ use quote::{quote, ToTokens};
 use syn::{punctuated::Punctuated, spanned::Spanned, token::Comma, Fields, TypePath, Variant};
 
 use crate::{
+    as_tokens_or_diagnostics,
     component::{
         features::{
             attributes::{
@@ -21,7 +22,7 @@ use crate::{
     },
     doc_comment::CommentAttributes,
     schema_type::SchemaType,
-    as_tokens_or_diagnostics, Array, AttributesExt, Diagnostics, ToTokensDiagnostics,
+    Array, AttributesExt, Diagnostics, ToTokensDiagnostics,
 };
 
 use super::{features, serde, NamedStructSchema, Root, UnnamedStructSchema};
@@ -361,22 +362,25 @@ impl<'p> MixedEnum<'p> {
         // If feature enabled, we might use discriminator from internally tagged variants
         #[allow(unused_mut)]
         let mut discriminator_tokens = if discriminator.is_some() {
-             Some(as_tokens_or_diagnostics!(&discriminator))
+            Some(as_tokens_or_diagnostics!(&discriminator))
         } else {
-             None
+            None
         };
 
         #[cfg(feature = "tagged_discriminator")]
         if discriminator_tokens.is_none() {
             if let SerdeEnumRepr::InternallyTagged { tag } = &container_rules.enum_repr {
-                let mappings = items.iter().filter_map(|item| {
-                    item.discriminator_variant.as_ref().map(|(variant_tag, schema_name)| {
+                let mappings = items
+                    .iter()
+                    .filter_map(|item| {
+                        item.discriminator_variant.as_ref().map(|(variant_tag, schema_name)| {
                         let variant_tag_token = variant_tag.to_token_stream();
                         quote! {
                             (#variant_tag_token, format!("#/components/schemas/{}", #schema_name))
                         }
                     })
-                }).collect::<Vec<_>>();
+                    })
+                    .collect::<Vec<_>>();
 
                 if !mappings.is_empty() {
                     let mappings = Array::Owned(mappings);
@@ -511,7 +515,14 @@ impl MixedEnumContent {
         serde_container: &SerdeContainer,
         variant_serde_rules: SerdeValue,
         rename_all: Option<&RenameAll>,
-    ) -> Result<(TokenStream, Vec<SchemaReference>, Option<(String, TokenStream)>), Diagnostics> {
+    ) -> Result<
+        (
+            TokenStream,
+            Vec<SchemaReference>,
+            Option<(String, TokenStream)>,
+        ),
+        Diagnostics,
+    > {
         let MixedEnumVariant {
             variant,
             fields,
@@ -611,7 +622,14 @@ impl MixedEnumContent {
         serde_container: &SerdeContainer,
         variant_serde_rules: SerdeValue,
         rename_all: Option<&RenameAll>,
-    ) -> Result<(TokenStream, Vec<SchemaReference>, Option<(String, TokenStream)>), Diagnostics> {
+    ) -> Result<
+        (
+            TokenStream,
+            Vec<SchemaReference>,
+            Option<(String, TokenStream)>,
+        ),
+        Diagnostics,
+    > {
         let MixedEnumVariant {
             variant,
             fields,
@@ -673,18 +691,23 @@ impl MixedEnumContent {
 
                         // Clean schema reference generation
                         (
-                             EnumSchema::<InternallyTaggedUnnamedSchema>::new_clean_reference(schema_tokens)
-                                .features(enum_features)
-                                .to_token_stream(),
+                            EnumSchema::<InternallyTaggedUnnamedSchema>::new_clean_reference(
+                                schema_tokens,
+                            )
+                            .features(enum_features)
+                            .to_token_stream(),
                             schema.schema_references,
                             Some((name.as_ref().to_string(), schema_name)),
                         )
                     } else {
                         (
-                            EnumSchema::<InternallyTaggedUnnamedSchema>::new(schema_tokens, is_reference)
-                                .tag(tag, PlainSchema::for_name(name.as_ref()))
-                                .features(enum_features)
-                                .to_token_stream(),
+                            EnumSchema::<InternallyTaggedUnnamedSchema>::new(
+                                schema_tokens,
+                                is_reference,
+                            )
+                            .tag(tag, PlainSchema::for_name(name.as_ref()))
+                            .features(enum_features)
+                            .to_token_stream(),
                             schema.schema_references,
                             None,
                         )
@@ -692,11 +715,14 @@ impl MixedEnumContent {
                 }
                 #[cfg(not(feature = "tagged_discriminator"))]
                 {
-                     (
-                        EnumSchema::<InternallyTaggedUnnamedSchema>::new(schema_tokens, is_reference)
-                            .tag(tag, PlainSchema::for_name(name.as_ref()))
-                            .features(enum_features)
-                            .to_token_stream(),
+                    (
+                        EnumSchema::<InternallyTaggedUnnamedSchema>::new(
+                            schema_tokens,
+                            is_reference,
+                        )
+                        .tag(tag, PlainSchema::for_name(name.as_ref()))
+                        .features(enum_features)
+                        .to_token_stream(),
                         schema.schema_references,
                         None,
                     )
