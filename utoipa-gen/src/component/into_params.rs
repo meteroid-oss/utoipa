@@ -107,7 +107,8 @@ impl ToTokensDiagnostics for IntoParams {
         let parameter_in = pop_feature!(into_params_features => Feature::ParameterIn(_));
         let rename_all = pop_feature!(into_params_features => Feature::RenameAll(_));
 
-        let params = self
+        // Collect and partition fields into flattened and direct fields
+        let all_fields = self
             .get_struct_fields(&names.as_ref())?
             .enumerate()
             .map(|(index, field)| {
@@ -117,18 +118,22 @@ impl ToTokensDiagnostics for IntoParams {
                 };
                 match serde::parse_value(&field.attrs) {
                     Ok(serde_value) => Ok((index, field, serde_value, field_features)),
-                    Err(diagnostics) => Err(diagnostics)
+                    Err(diagnostics) => Err(diagnostics),
                 }
             })
             .collect::<Result<Vec<_>, Diagnostics>>()?
             .into_iter()
-            .filter_map(|(index, field, field_serde_params, field_features)| {
-                if field_serde_params.skip {
-                    None
-                } else {
-                    Some((index, field, field_serde_params, field_features))
-                }
-            })
+            .filter(|(_, _, field_serde_params, _)| !field_serde_params.skip)
+            .collect::<Vec<_>>();
+
+        // Partition into flattened and direct (non-flattened) fields
+        let (flattened_fields, direct_fields): (Vec<_>, Vec<_>) = all_fields
+            .into_iter()
+            .partition(|(_, _, field_serde_params, _)| field_serde_params.flatten);
+
+        // Process direct (non-flattened) fields as before
+        let direct_params = direct_fields
+            .into_iter()
             .map(|(index, field, field_serde_params, field_features)| {
                 let name = names.as_ref()
                     .map_try(|names| names.get(index).ok_or_else(|| Diagnostics::with_span(
@@ -140,26 +145,69 @@ impl ToTokensDiagnostics for IntoParams {
                     Err(diagnostics) => return Err(diagnostics)
                 };
                 let param = Param::new(field, field_serde_params, field_features, FieldParamContainerAttributes {
-                        rename_all: rename_all.as_ref().and_then(|feature| {
-                            match feature {
-                                Feature::RenameAll(rename_all) => Some(rename_all),
-                                _ => None
-                            }
-                        }),
-                        style: &style,
-                        parameter_in: &parameter_in,
-                        name,
-                    }, &serde_container, &self.generics)?;
-
+                    rename_all: rename_all.as_ref().and_then(|feature| {
+                        match feature {
+                            Feature::RenameAll(rename_all) => Some(rename_all),
+                            _ => None
+                        }
+                    }),
+                    style: &style,
+                    parameter_in: &parameter_in,
+                    name,
+                }, &serde_container, &self.generics)?;
 
                 Ok(param.to_token_stream())
             })
             .collect::<Result<Array<TokenStream>, Diagnostics>>()?;
 
+        // Process flattened fields - these call into_params on the nested type
+        let flattened_params = flattened_fields
+            .into_iter()
+            .map(|(_, field, _, mut field_features)| {
+                let ty = &field.ty;
+
+                // Check if there's a schema_with override for this flattened field
+                let schema_with =
+                    pop_feature!(field_features => Feature::SchemaWith(_) as Option<SchemaWith>);
+
+                // Build the parameter_in closure to pass to nested into_params
+                let parameter_in_value = parameter_in.as_ref().and_then(|feature| match feature {
+                    Feature::ParameterIn(value) => Some(value),
+                    _ => None,
+                });
+                let parameter_in_closure = if let Some(param_in) = parameter_in_value {
+                    quote! { || Some(#param_in) }
+                } else {
+                    quote! { || parameter_in_provider() }
+                };
+
+                if let Some(schema_with) = schema_with {
+                    // Use the custom schema_with function - it receives the parameter_in provider
+                    // and returns Vec<Parameter>
+                    let path = schema_with.path();
+                    Ok(quote! {
+                        params.extend(#path(#parameter_in_closure));
+                    })
+                } else {
+                    // Use the type's IntoParams implementation
+                    Ok(quote! {
+                        params.extend(<#ty as utoipa::IntoParams>::into_params(#parameter_in_closure));
+                    })
+                }
+            })
+            .collect::<Result<Vec<TokenStream>, Diagnostics>>()?;
+
+        // Generate the impl block
         tokens.extend(quote! {
             impl #impl_generics utoipa::IntoParams for #ident #ty_generics #where_clause {
                 fn into_params(parameter_in_provider: impl Fn() -> Option<utoipa::openapi::path::ParameterIn>) -> Vec<utoipa::openapi::path::Parameter> {
-                    #params.into_iter().filter(Option::is_some).flatten().collect()
+                    let mut params: Vec<utoipa::openapi::path::Parameter> = #direct_params
+                        .into_iter()
+                        .filter(Option::is_some)
+                        .flatten()
+                        .collect();
+                    #(#flattened_params)*
+                    params
                 }
             }
         });

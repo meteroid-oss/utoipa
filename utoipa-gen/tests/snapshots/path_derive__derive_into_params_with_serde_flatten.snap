@@ -1,0 +1,40 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: params
+---
+[
+  {
+    "in": "query",
+    "name": "outer_id",
+    "required": true,
+    "schema": {
+      "format": "int64",
+      "type": "integer"
+    }
+  },
+  {
+    "in": "query",
+    "name": "outer_name",
+    "required": false,
+    "schema": {
+      "type": "string"
+    }
+  },
+  {
+    "in": "query",
+    "name": "inner_id",
+    "required": true,
+    "schema": {
+      "format": "int64",
+      "type": "integer"
+    }
+  },
+  {
+    "in": "query",
+    "name": "inner_name",
+    "required": true,
+    "schema": {
+      "type": "string"
+    }
+  }
+]
