@@ -580,6 +580,14 @@ impl Parse for SchemaWith {
     }
 }
 
+impl SchemaWith {
+    /// Get the inner type path for cases where we need to call the function
+    /// with custom arguments (e.g., flatten support in IntoParams).
+    pub fn path(&self) -> &TypePath {
+        &self.0
+    }
+}
+
 impl ToTokens for SchemaWith {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let path = &self.0;

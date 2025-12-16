@@ -1985,3 +1985,229 @@ fn derive_lifetime_generic_request_body_compiles() {
     let _ = serde_json::to_value(__path_test_const_generic::operation())
         .expect("Operation is JSON serializable");
 }
+
+#[test]
+fn derive_into_params_with_serde_flatten() {
+    /// Inner params that will be flattened
+    #[derive(IntoParams, Serialize)]
+    #[allow(unused)]
+    struct InnerParams {
+        inner_id: i64,
+        inner_name: String,
+    }
+
+    /// Outer params containing flattened inner params
+    #[derive(IntoParams, Serialize)]
+    #[into_params(parameter_in = Query)]
+    #[allow(unused)]
+    struct OuterParams {
+        outer_id: i64,
+        #[serde(flatten)]
+        inner: InnerParams,
+        outer_name: Option<String>,
+    }
+
+    #[utoipa::path(get, path = "/flatten-test", params(OuterParams))]
+    #[allow(unused)]
+    fn get_with_flatten() {}
+
+    let operation = test_api_fn_doc! {
+        get_with_flatten,
+        operation: get,
+        path: "/flatten-test"
+    };
+
+    let params = operation.pointer("/parameters").unwrap();
+
+    // Should have 4 parameters: outer_id, inner_id, inner_name, outer_name
+    assert!(params.is_array());
+    let params_array = params.as_array().unwrap();
+    assert_eq!(
+        params_array.len(),
+        4,
+        "Expected 4 parameters from flattened struct"
+    );
+
+    let param_names: Vec<&str> = params_array
+        .iter()
+        .filter_map(|p| p.get("name").and_then(|n| n.as_str()))
+        .collect();
+    assert!(param_names.contains(&"outer_id"), "Should contain outer_id");
+    assert!(param_names.contains(&"inner_id"), "Should contain inner_id");
+    assert!(
+        param_names.contains(&"inner_name"),
+        "Should contain inner_name"
+    );
+    assert!(
+        param_names.contains(&"outer_name"),
+        "Should contain outer_name"
+    );
+
+    for param in params_array {
+        let param_in = param.get("in").and_then(|v| v.as_str());
+        assert_eq!(param_in, Some("query"), "All parameters should be in query");
+    }
+
+    assert_json_snapshot!(params);
+}
+
+#[test]
+fn derive_into_params_with_nested_flatten() {
+    /// Deeply nested params
+    #[derive(IntoParams, Serialize)]
+    #[allow(unused)]
+    struct DeepParams {
+        deep_value: String,
+    }
+
+    /// Middle layer params
+    #[derive(IntoParams, Serialize)]
+    #[allow(unused)]
+    struct MiddleParams {
+        middle_value: i32,
+        #[serde(flatten)]
+        deep: DeepParams,
+    }
+
+    /// Top level params with nested flatten
+    #[derive(IntoParams, Serialize)]
+    #[into_params(parameter_in = Query)]
+    #[allow(unused)]
+    struct TopParams {
+        top_value: bool,
+        #[serde(flatten)]
+        middle: MiddleParams,
+    }
+
+    #[utoipa::path(get, path = "/nested-flatten", params(TopParams))]
+    #[allow(unused)]
+    fn get_nested_flatten() {}
+
+    let operation = test_api_fn_doc! {
+        get_nested_flatten,
+        operation: get,
+        path: "/nested-flatten"
+    };
+
+    let params = operation.pointer("/parameters").unwrap();
+    let params_array = params.as_array().unwrap();
+
+    // Should have 3 parameters: top_value, middle_value, deep_value
+    assert_eq!(
+        params_array.len(),
+        3,
+        "Expected 3 parameters from nested flatten"
+    );
+
+    let param_names: Vec<&str> = params_array
+        .iter()
+        .filter_map(|p| p.get("name").and_then(|n| n.as_str()))
+        .collect();
+    assert!(param_names.contains(&"top_value"));
+    assert!(param_names.contains(&"middle_value"));
+    assert!(param_names.contains(&"deep_value"));
+
+    assert_json_snapshot!(params);
+}
+
+#[test]
+fn derive_into_params_flatten_with_rename_all() {
+    #[derive(IntoParams, Serialize)]
+    #[allow(unused)]
+    struct InnerParams {
+        inner_field: String,
+    }
+
+    #[derive(IntoParams, Serialize)]
+    #[into_params(parameter_in = Query, rename_all = "camelCase")]
+    #[allow(unused)]
+    struct OuterParams {
+        outer_field: String,
+        #[serde(flatten)]
+        inner: InnerParams,
+    }
+
+    #[utoipa::path(get, path = "/flatten-rename", params(OuterParams))]
+    #[allow(unused)]
+    fn get_flatten_rename() {}
+
+    let operation = test_api_fn_doc! {
+        get_flatten_rename,
+        operation: get,
+        path: "/flatten-rename"
+    };
+
+    let params = operation.pointer("/parameters").unwrap();
+    let params_array = params.as_array().unwrap();
+
+    let param_names: Vec<&str> = params_array
+        .iter()
+        .filter_map(|p| p.get("name").and_then(|n| n.as_str()))
+        .collect();
+
+    // outer_field should be renamed to camelCase, but inner_field uses its own rules
+    assert!(
+        param_names.contains(&"outerField"),
+        "outer_field should be renamed to outerField"
+    );
+    // inner_field keeps its own naming since it comes from InnerParams
+    assert!(
+        param_names.contains(&"inner_field"),
+        "inner_field should keep its original name"
+    );
+
+    assert_json_snapshot!(params);
+}
+
+#[test]
+fn derive_into_params_flatten_with_skip() {
+    #[derive(IntoParams, Serialize)]
+    #[allow(unused)]
+    struct InnerParams {
+        included_field: String,
+        #[serde(skip)]
+        skipped_field: String,
+    }
+
+    #[derive(IntoParams, Serialize)]
+    #[into_params(parameter_in = Query)]
+    #[allow(unused)]
+    struct OuterParams {
+        outer_field: String,
+        #[serde(flatten)]
+        inner: InnerParams,
+    }
+
+    #[utoipa::path(get, path = "/flatten-skip", params(OuterParams))]
+    #[allow(unused)]
+    fn get_flatten_skip() {}
+
+    let operation = test_api_fn_doc! {
+        get_flatten_skip,
+        operation: get,
+        path: "/flatten-skip"
+    };
+
+    let params = operation.pointer("/parameters").unwrap();
+    let params_array = params.as_array().unwrap();
+
+    // Should have 2 parameters: outer_field, included_field (skipped_field should be excluded)
+    assert_eq!(
+        params_array.len(),
+        2,
+        "Expected 2 parameters (skipped_field excluded)"
+    );
+
+    let param_names: Vec<&str> = params_array
+        .iter()
+        .filter_map(|p| p.get("name").and_then(|n| n.as_str()))
+        .collect();
+    assert!(param_names.contains(&"outer_field"));
+    assert!(param_names.contains(&"included_field"));
+    assert!(
+        !param_names.contains(&"skipped_field"),
+        "skipped_field should not be present"
+    );
+
+    assert_json_snapshot!(params);
+}

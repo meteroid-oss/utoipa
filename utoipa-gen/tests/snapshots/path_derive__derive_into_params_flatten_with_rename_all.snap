@@ -1,0 +1,22 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: params
+---
+[
+  {
+    "in": "query",
+    "name": "outerField",
+    "required": true,
+    "schema": {
+      "type": "string"
+    }
+  },
+  {
+    "in": "query",
+    "name": "inner_field",
+    "required": true,
+    "schema": {
+      "type": "string"
+    }
+  }
+]

@@ -1,0 +1,31 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: params
+---
+[
+  {
+    "in": "query",
+    "name": "top_value",
+    "required": true,
+    "schema": {
+      "type": "boolean"
+    }
+  },
+  {
+    "in": "query",
+    "name": "middle_value",
+    "required": true,
+    "schema": {
+      "format": "int32",
+      "type": "integer"
+    }
+  },
+  {
+    "in": "query",
+    "name": "deep_value",
+    "required": true,
+    "schema": {
+      "type": "string"
+    }
+  }
+]
