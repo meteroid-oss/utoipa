@@ -3,6 +3,24 @@
 **`utoipa`** is in direct correlation with **`utoipa-gen`** ([CHANGELOG.md](../utoipa-gen/CHANGELOG.md)). You might want
 to look into changes introduced to **`utoipa-gen`**.
 
+## Unreleased
+
+### Added
+
+* Add `bigdecimal` and `bigdecimal_float` feature support for `BigDecimal` type (https://github.com/juhaku/utoipa/pull/1487)
+* Add support for `title` on `RefBuilder` (https://github.com/juhaku/utoipa/pull/1380)
+* Add support for `default` on `RefBuilder` (https://github.com/juhaku/utoipa/pull/1380)
+
+### Changed
+
+* **Breaking**: Removed `serde_norway` dependency. The `yaml` feature now uses `yaml_serde` and `OpenApi::to_yaml` returns `yaml_serde::Error` (https://github.com/juhaku/utoipa/issues/1565)
+
+## 5.5.0 - May 5 2026
+
+### Added
+
+* Add support for jiff v0.2 `Timestamp` (https://github.com/juhaku/utoipa/pull/1416)
+
 ## 5.4.0 - Jun 16 2025
 
 ### Added
