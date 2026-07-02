@@ -77,15 +77,23 @@ jobs:
             fi
           fi
 
+          # Returns 0 if $1@$2 is already on the crates.io sparse index. We query the
+          # index (what cargo itself resolves against) rather than the web API, which
+          # can rate-limit or reject on User-Agent policy and give a false "missing"
+          # that makes us try to re-publish an existing version.
+          is_published() {
+            local name="$1" ver="$2" prefix="${1:0:2}/${1:2:2}"
+            curl -sSf "https://index.crates.io/${prefix}/${name}" 2>/dev/null \
+              | grep -qF "\"vers\":\"${ver}\""
+          }
+
           published=0
           for crate in $publish_order; do
             version=$(jq -r --arg n "$crate" '.packages[] | select(.name == $n) | .version' <<<"$metadata")
             echo "::group::$crate v$version"
 
-            # Idempotent: skip versions already live on crates.io.
-            code=$(curl -sS -o /dev/null -w '%{http_code}' \
-              "https://crates.io/api/v1/crates/${crate}/${version}" || echo "000")
-            if [[ "$code" == "200" ]]; then
+            # Idempotent fast-path: skip versions already live on the index.
+            if is_published "$crate" "$version"; then
               echo "$crate $version is already published, skipping."
               echo "- \`$crate\` \`$version\` — already published (skipped)" >> "$GITHUB_STEP_SUMMARY"
               echo "::endgroup::"
@@ -96,10 +104,23 @@ jobs:
             [[ "$DRY_RUN" == "true" ]] && flags+=(--dry-run)
 
             # cargo (>=1.66) blocks until the crate is queryable in the index, so the
-            # next dependent crate can resolve it. Retry to ride out transient hiccups.
+            # next dependent crate can resolve it. Retry to ride out transient hiccups,
+            # but treat "already published" as success: re-publishing a version is never
+            # retryable, and the pre-check can race a concurrent or just-finished publish.
             attempt=1
             max=5
-            until cargo publish "${flags[@]}"; do
+            skipped=""
+            while true; do
+              if out=$(cargo publish "${flags[@]}" 2>&1); then
+                printf '%s\n' "$out"
+                break
+              fi
+              printf '%s\n' "$out"
+              if grep -qiE "already (exists|uploaded)" <<<"$out"; then
+                echo "$crate $version is already published, skipping."
+                skipped=1
+                break
+              fi
               if [[ $attempt -ge $max ]]; then
                 echo "::error::Failed to publish $crate after $max attempts."
                 exit 1
@@ -110,12 +131,15 @@ jobs:
               attempt=$((attempt + 1))
             done
 
-            if [[ "$DRY_RUN" == "true" ]]; then
+            if [[ -n "$skipped" ]]; then
+              echo "- \`$crate\` \`$version\` — already published (skipped)" >> "$GITHUB_STEP_SUMMARY"
+            elif [[ "$DRY_RUN" == "true" ]]; then
               echo "- \`$crate\` \`$version\` — dry-run OK" >> "$GITHUB_STEP_SUMMARY"
+              published=$((published + 1))
             else
               echo "- \`$crate\` \`$version\` — published" >> "$GITHUB_STEP_SUMMARY"
+              published=$((published + 1))
             fi
-            published=$((published + 1))
             echo "::endgroup::"
           done
 
