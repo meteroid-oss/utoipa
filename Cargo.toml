@@ -17,11 +17,15 @@ members = [
 ]
 
 # Crates published to crates.io under the meteroid-oss fork, in dependency order.
-# Only these three carry the fork's custom features (e.g. `tagged_discriminator`);
-# the remaining workspace members are kept building locally but are not published.
+# The core three (`-config`, `-gen`, `meteroid-utoipa`) carry the fork's custom
+# features (e.g. `tagged_discriminator`); `-axum` and `-scalar` are the framework
+# bindings consumed downstream. The remaining workspace members are kept building
+# locally but are not published.
 [workspace.metadata.publish]
 order = [
     "meteroid-utoipa-config",
     "meteroid-utoipa-gen",
     "meteroid-utoipa",
+    "meteroid-utoipa-axum",
+    "meteroid-utoipa-scalar",
 ]

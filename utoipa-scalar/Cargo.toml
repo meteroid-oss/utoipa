@@ -1,15 +1,20 @@
 [package]
-name = "utoipa-scalar"
-description = "Scalar for utoipa"
+name = "meteroid-utoipa-scalar"
+description = "Scalar for utoipa (meteroid-oss fork of utoipa-scalar)"
 version = "0.3.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["scalar", "openapi", "documentation"]
-repository = "https://github.com/juhaku/utoipa"
+repository = "https://github.com/meteroid-oss/utoipa"
 categories = ["web-programming"]
 authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>"]
 rust-version.workspace = true
+
+# Published as `meteroid-utoipa-scalar` but keeps the `utoipa_scalar` lib name so
+# downstream code stays `use utoipa_scalar::...` as a drop-in with upstream.
+[lib]
+name = "utoipa_scalar"
 
 [package.metadata.docs.rs]
 features = ["actix-web", "axum", "rocket"]
@@ -26,7 +31,7 @@ rocket = { version = "0.5", features = ["json"], optional = true }
 axum = { version = "0.8.4", default-features = false, optional = true }
 
 [dev-dependencies]
-utoipa-scalar = { path = ".", features = ["actix-web", "axum", "rocket"] }
+utoipa-scalar = { package = "meteroid-utoipa-scalar", path = ".", features = ["actix-web", "axum", "rocket"] }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }
