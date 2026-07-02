@@ -4,19 +4,27 @@ name: Publish crates
 #   meteroid-utoipa-config -> meteroid-utoipa-gen -> meteroid-utoipa
 # The order comes from [workspace.metadata.publish].order in the root Cargo.toml.
 #
-# How to cut a release:
-#   1. Bump the version(s) in the crate Cargo.toml files and commit.
-#   2. Tag it, e.g. `git tag meteroid-utoipa-v5.5.0 && git push origin meteroid-utoipa-v5.5.0`.
-#      (Or run this workflow manually from the Actions tab.)
+# How to cut a release (managed via GitHub Releases):
+#   1. Bump the version(s) of whatever changed in the crate Cargo.toml files and
+#      merge to the default branch. The versions published come from Cargo.toml,
+#      not from the tag name.
+#   2. GitHub -> Releases -> Draft a new release -> choose a tag matching the
+#      meteroid-utoipa version (e.g. v5.6.0, created on publish) -> Publish.
+#
+# The tag is only a trigger: each crate whose version is already on crates.io is
+# skipped, so only the crates you bumped are published, and re-running a failed
+# release is safe.
+#
+# Note: `release`-triggered workflows run from the copy of this file on the
+# DEFAULT branch, so this must be merged to master to fire on a release. You can
+# also run it by hand (Actions -> Run workflow) with an optional dry-run.
 #
 # Requires a `CARGO_REGISTRY_TOKEN` repository secret: a crates.io API token with
-# publish scope (crates.io -> Account Settings -> API Tokens). Versions that are
-# already on crates.io are skipped, so re-running a failed release is safe.
+# publish scope (crates.io -> Account Settings -> API Tokens).
 
 on:
-  push:
-    tags:
-      - "meteroid-utoipa-v*"
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       dry_run:
@@ -46,6 +54,7 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           set -euo pipefail
 
@@ -57,6 +66,18 @@ jobs:
           metadata=$(cargo metadata --format-version=1 --no-deps)
           publish_order=$(jq -r '.metadata.publish.order[]' <<<"$metadata")
 
+          # The release tag is only a trigger; the versions published come from
+          # Cargo.toml. Warn (don't fail) if the tag doesn't match the headline
+          # meteroid-utoipa version, which usually means a forgotten version bump.
+          if [[ -n "${RELEASE_TAG:-}" ]]; then
+            headline=$(jq -r '.packages[] | select(.name == "meteroid-utoipa") | .version' <<<"$metadata")
+            tag_ver=$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.]+)?' <<<"$RELEASE_TAG" | head -1 || true)
+            if [[ -n "$tag_ver" && "$tag_ver" != "$headline" ]]; then
+              echo "::warning::Release tag '$RELEASE_TAG' does not match meteroid-utoipa version '$headline' in Cargo.toml. The tag only triggers the run; published versions come from Cargo.toml."
+            fi
+          fi
+
+          published=0
           for crate in $publish_order; do
             version=$(jq -r --arg n "$crate" '.packages[] | select(.name == $n) | .version' <<<"$metadata")
             echo "::group::$crate v$version"
@@ -94,5 +115,10 @@ jobs:
             else
               echo "- \`$crate\` \`$version\` — published" >> "$GITHUB_STEP_SUMMARY"
             fi
+            published=$((published + 1))
             echo "::endgroup::"
           done
+
+          if [[ "$published" -eq 0 && "$DRY_RUN" != "true" ]]; then
+            echo "::notice::Nothing published — every crate version is already on crates.io. Did you bump the Cargo.toml version(s)?"
+          fi
