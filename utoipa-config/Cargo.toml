@@ -1,15 +1,20 @@
 [package]
-name = "utoipa-config"
-description = "Config for controlling utoipa's various aspects"
+name = "meteroid-utoipa-config"
+description = "Config for controlling utoipa's various aspects (meteroid-oss fork of utoipa-config)"
 version = "0.1.2"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["utoipa", "config", "utoipa-gen", "openapi", "auto-generate"]
-repository = "https://github.com/juhaku/utoipa"
+repository = "https://github.com/meteroid-oss/utoipa"
 categories = ["web-programming"]
 authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>"]
 rust-version.workspace = true
+
+# Published as `meteroid-utoipa-config` but keeps the `utoipa_config` lib name
+# so it stays a drop-in match for upstream utoipa-config.
+[lib]
+name = "utoipa_config"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

@@ -23,7 +23,7 @@ debug = []
 
 [dependencies]
 axum = { version = "0.8.4", default-features = false }
-utoipa = { version = "5.0.0", path = "../utoipa", default-features = false, features = [
+utoipa = { package = "meteroid-utoipa", version = "5.0.0", path = "../utoipa", default-features = false, features = [
     "macros",
 ] }
 tower-service = "0.3"
@@ -31,7 +31,7 @@ tower-layer = "0.3.3"
 pastey = "0.2"
 
 [dev-dependencies]
-utoipa = { path = "../utoipa", features = ["debug"] }
+utoipa = { package = "meteroid-utoipa", path = "../utoipa", features = ["debug"] }
 axum = { version = "0.8.4", default-features = false, features = ["json"] }
 http = "1.4"
 insta = { version = "1.47", features = ["json"] }

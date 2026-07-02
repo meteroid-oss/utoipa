@@ -12,12 +12,12 @@ authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>"]
 rust-version.workspace = true
 
 [dependencies]
-utoipa = { path = "../utoipa", version = "5" }
+utoipa = { package = "meteroid-utoipa", path = "../utoipa", version = "5" }
 actix-web = { version = "4", default-features = false }
 actix-service = "2"
 
 [dev-dependencies]
-utoipa = { path = "../utoipa", version = "5", features = [
+utoipa = { package = "meteroid-utoipa", path = "../utoipa", version = "5", features = [
     "actix_extras",
     "macros",
     "debug",
