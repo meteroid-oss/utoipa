@@ -33,20 +33,38 @@ the token's account (the first publish claims them).
 
 ## Cutting a release
 
-1. Bump the version in the relevant `Cargo.toml` file(s) and commit.
-2. Tag and push:
+Releases are managed through **GitHub Releases**:
 
-   ```bash
-   git tag meteroid-utoipa-v5.5.0
-   git push origin meteroid-utoipa-v5.5.0
-   ```
+1. Bump the version of whatever changed in the relevant `Cargo.toml` file(s) and
+   merge to the default branch. The versions published come from `Cargo.toml`, not
+   from the tag name. In practice `meteroid-utoipa` and `meteroid-utoipa-gen` move
+   together; `meteroid-utoipa-config` rarely changes.
+2. On GitHub, go to **Releases → Draft a new release**, choose a new tag (e.g.
+   `v5.5.1`, created when you publish), write the notes, and **Publish**.
 
-   The **Publish crates** workflow (`.github/workflows/publish-crates.yaml`) runs on
-   any `meteroid-utoipa-v*` tag. You can also trigger it manually from the Actions
-   tab, with an optional dry-run.
+Publishing the release fires the **Publish crates** workflow
+(`.github/workflows/publish-crates.yaml`). You can also run it by hand from the
+Actions tab (**Run workflow**) with an optional dry-run.
 
-The workflow publishes each crate in order and **skips versions already on
-crates.io**, so re-running after a partial failure is safe. Because the crates
-depend on each other, a brand-new crate name must be published before the crate
-that depends on it — the workflow handles this by publishing in order and letting
-cargo wait for the index between steps.
+The workflow publishes each crate in dependency order and **skips versions already
+on crates.io**, so:
+
+- only the crates whose version you actually bumped get published;
+- re-running after a partial failure is safe;
+- a brand-new crate must land before the crate that depends on it — handled by
+  publishing in order while cargo waits for the index between steps.
+
+If a release publishes nothing, every crate version was already on crates.io —
+you probably forgot to bump the `Cargo.toml` version(s).
+
+> `release`-triggered workflows always run from the copy of this file on the
+> **default branch**, so this workflow must be on `master` to fire on a release.
+
+### Versioning
+
+Because these crates are published under their own names (`meteroid-utoipa*`),
+their versions are independent of upstream `utoipa` — there is no collision. The
+initial `5.5.0` mirrors the upstream base the fork tracks; bump the patch
+(`5.5.1`, `5.5.2`, …) for fork changes, and jump to match upstream when you rebase
+onto a newer release (e.g. `5.6.0`). Versions must be valid semver
+(`MAJOR.MINOR.PATCH`); four-component versions like `5.5.0.1` are not accepted.

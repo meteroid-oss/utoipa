@@ -4,19 +4,24 @@ name: Publish crates
 #   meteroid-utoipa-config -> meteroid-utoipa-gen -> meteroid-utoipa
 # The order comes from [workspace.metadata.publish].order in the root Cargo.toml.
 #
-# How to cut a release:
-#   1. Bump the version(s) in the crate Cargo.toml files and commit.
-#   2. Tag it, e.g. `git tag meteroid-utoipa-v5.5.0 && git push origin meteroid-utoipa-v5.5.0`.
-#      (Or run this workflow manually from the Actions tab.)
+# How to cut a release (managed via GitHub Releases):
+#   1. Bump the version(s) of whatever changed in the crate Cargo.toml files and
+#      merge to the default branch. Versions come from Cargo.toml, not the tag.
+#   2. GitHub -> Releases -> Draft a new release -> choose a tag (created on
+#      publish, e.g. v5.5.1) -> Publish. That fires this workflow.
+# Each crate whose version is already on crates.io is skipped, so only the crates
+# you actually bumped are published, and re-running a failed release is safe.
+#
+# Note: `release`-triggered workflows run from the copy of this file on the
+# DEFAULT branch, so this must be merged to master to take effect. You can also
+# run it by hand (Actions -> Run workflow) with an optional dry-run.
 #
 # Requires a `CARGO_REGISTRY_TOKEN` repository secret: a crates.io API token with
-# publish scope (crates.io -> Account Settings -> API Tokens). Versions that are
-# already on crates.io are skipped, so re-running a failed release is safe.
+# publish scope (crates.io -> Account Settings -> API Tokens).
 
 on:
-  push:
-    tags:
-      - "meteroid-utoipa-v*"
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       dry_run:
@@ -57,6 +62,7 @@ jobs:
           metadata=$(cargo metadata --format-version=1 --no-deps)
           publish_order=$(jq -r '.metadata.publish.order[]' <<<"$metadata")
 
+          published=0
           for crate in $publish_order; do
             version=$(jq -r --arg n "$crate" '.packages[] | select(.name == $n) | .version' <<<"$metadata")
             echo "::group::$crate v$version"
@@ -94,5 +100,10 @@ jobs:
             else
               echo "- \`$crate\` \`$version\` — published" >> "$GITHUB_STEP_SUMMARY"
             fi
+            published=$((published + 1))
             echo "::endgroup::"
           done
+
+          if [[ "$published" -eq 0 && "$DRY_RUN" != "true" ]]; then
+            echo "::notice::Nothing published — every crate version is already on crates.io. Did you bump the Cargo.toml version(s)?"
+          fi
