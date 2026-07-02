@@ -5,7 +5,6 @@ use quote::{quote, ToTokens};
 use syn::{punctuated::Punctuated, spanned::Spanned, token::Comma, Fields, TypePath, Variant};
 
 use crate::{
-    as_tokens_or_diagnostics,
     component::{
         features::{
             attributes::{
@@ -22,7 +21,7 @@ use crate::{
     },
     doc_comment::CommentAttributes,
     schema_type::SchemaType,
-    token_stream::{Diagnostics, ToTokensDiagnostics},
+    token_stream::{as_tokens_or_diagnostics, Diagnostics, ToTokensDiagnostics},
     Array, AttributesExt,
 };
 
