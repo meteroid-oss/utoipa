@@ -1,16 +1,18 @@
 # Releasing (meteroid-oss fork)
 
-This fork publishes three crates to crates.io, in dependency order:
+This fork publishes five crates to crates.io, in dependency order:
 
 | crates.io name           | path             | import as (unchanged) | version |
 | ------------------------ | ---------------- | --------------------- | ------- |
 | `meteroid-utoipa-config` | `utoipa-config/` | `utoipa_config`       | 0.1.2   |
 | `meteroid-utoipa-gen`    | `utoipa-gen/`    | `utoipa_gen`          | 5.6.0   |
 | `meteroid-utoipa`        | `utoipa/`        | `utoipa`              | 5.6.0   |
+| `meteroid-utoipa-axum`   | `utoipa-axum/`   | `utoipa_axum`         | 0.2.0   |
+| `meteroid-utoipa-scalar` | `utoipa-scalar/` | `utoipa_scalar`       | 0.3.0   |
 
 The crates.io **package** names are prefixed with `meteroid-`, but the **library**
-names are kept (`utoipa`, `utoipa_gen`, `utoipa_config`). Downstream code therefore
-stays a drop-in with upstream:
+names are kept (`utoipa`, `utoipa_gen`, `utoipa_config`, `utoipa_axum`,
+`utoipa_scalar`). Downstream code therefore stays a drop-in with upstream:
 
 ```toml
 [dependencies]
@@ -21,14 +23,15 @@ meteroid-utoipa = "5"
 use utoipa::ToSchema; // still `utoipa::...`
 ```
 
-The other workspace crates (`utoipa-swagger-ui`, `utoipa-axum`, ...) are **not**
-published from this fork; they only build locally against the renamed core.
+The other workspace crates (`utoipa-swagger-ui`, `utoipa-redoc`, `utoipa-rapidoc`,
+`utoipa-actix-web`, ...) are **not** published from this fork; they only build
+locally against the renamed core.
 
 ## One-time setup
 
 Add a repository secret `CARGO_REGISTRY_TOKEN` (Settings → Secrets and variables →
 Actions) — a crates.io API token with publish scope from
-crates.io → Account Settings → API Tokens. The three crate names must be owned by
+crates.io → Account Settings → API Tokens. The five crate names must be owned by
 the token's account (the first publish claims them).
 
 ## Cutting a release
@@ -62,16 +65,17 @@ you probably forgot to bump the `Cargo.toml` version(s).
 
 ## Which tag do I pick?
 
-The three crates have different versions, but you only pick **one** tag, and it's
+The crates have different versions, but you only pick **one** tag, and it's
 just a trigger — it does not decide what gets published (that comes from each
 crate's `Cargo.toml`). Use the **`meteroid-utoipa` version**, e.g. `v5.6.0`. That
 is the crate you and downstream depend on, so the release *is* "meteroid-utoipa
-5.6.0". The other two ride along automatically:
+5.6.0". The others ride along automatically:
 
 - `meteroid-utoipa-gen` moves **in lockstep** with `meteroid-utoipa` (same number —
   the derive-macro crate and its runtime are a matched pair), so it is covered.
-- `meteroid-utoipa-config` is independent and rarely changes; whenever you bump its
-  own `Cargo.toml`, it publishes on the next release regardless of the tag.
+- `meteroid-utoipa-config`, `meteroid-utoipa-axum` and `meteroid-utoipa-scalar` are
+  independent and rarely change; whenever you bump one's own `Cargo.toml`, it
+  publishes on the next release regardless of the tag.
 
 The workflow emits a warning if the release tag's version doesn't match the
 `meteroid-utoipa` version, to catch a forgotten bump.
@@ -87,6 +91,9 @@ juhaku/utoipa):
   by two opt-in, backward-compatible features (`tagged_discriminator` and flatten
   support in `IntoParams`), hence the minor bump to **5.6.0**.
 - `meteroid-utoipa-config` is unchanged from upstream, so it stays at **0.1.2**.
+- `meteroid-utoipa-axum` (**0.2.0**) and `meteroid-utoipa-scalar` (**0.3.0**) are
+  the framework bindings, unchanged from upstream; they only depend on the renamed
+  core. Bump them when their own `Cargo.toml` changes.
 
 Keep `meteroid-utoipa` and `meteroid-utoipa-gen` on the same version. When you
 rebase onto a newer upstream release, jump to match it (e.g. upstream 5.7.0 →

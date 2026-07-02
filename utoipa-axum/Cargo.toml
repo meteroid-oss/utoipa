@@ -1,12 +1,12 @@
 [package]
-name = "utoipa-axum"
-description = "Utoipa's axum bindings for seamless integration for the two"
+name = "meteroid-utoipa-axum"
+description = "Utoipa's axum bindings for seamless integration for the two (meteroid-oss fork of utoipa-axum)"
 version = "0.2.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["utoipa", "axum", "bindings"]
-repository = "https://github.com/juhaku/utoipa"
+repository = "https://github.com/meteroid-oss/utoipa"
 categories = ["web-programming"]
 authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>"]
 rust-version.workspace = true
@@ -18,6 +18,12 @@ include = [
     "CHANGELOG.md",
     "Cargo.toml",
 ]
+
+# Published as `meteroid-utoipa-axum` but keeps the `utoipa_axum` lib name so
+# downstream code stays `use utoipa_axum::...` as a drop-in with upstream.
+[lib]
+name = "utoipa_axum"
+
 [features]
 debug = []
 
