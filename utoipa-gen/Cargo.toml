@@ -1,12 +1,12 @@
 [package]
-name = "utoipa-gen"
-description = "Code generation implementation for utoipa"
+name = "meteroid-utoipa-gen"
+description = "Code generation implementation for utoipa (meteroid-oss fork of utoipa-gen)"
 version = "5.5.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["openapi", "codegen", "proc-macro", "documentation", "compile-time"]
-repository = "https://github.com/juhaku/utoipa"
+repository = "https://github.com/meteroid-oss/utoipa"
 authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>"]
 rust-version.workspace = true
 include = [
@@ -19,10 +19,13 @@ include = [
 ]
 
 [lib]
+# Keep the `utoipa_gen` lib name so the macro output (which roots paths at
+# `utoipa::`) and the `utoipa` crate's `pub use utoipa_gen::*` keep resolving.
+name = "utoipa_gen"
 proc-macro = true
 
 [dependencies]
-utoipa-config = { version = "0.1", path = "../utoipa-config", optional = true }
+utoipa-config = { package = "meteroid-utoipa-config", version = "0.1", path = "../utoipa-config", optional = true }
 once_cell = { version = "1.21.4", optional = true }
 proc-macro2 = "1.0"
 syn = { version = "2.0", features = ["full", "extra-traits"] }
@@ -33,7 +36,7 @@ ulid = { version = "1", optional = true, default-features = false }
 url = { version = "2", optional = true }
 
 [dev-dependencies]
-utoipa = { path = "../utoipa", features = [
+utoipa = { package = "meteroid-utoipa", path = "../utoipa", features = [
     "debug",
     "uuid",
     "macros",

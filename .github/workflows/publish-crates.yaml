@@ -1,0 +1,98 @@
+name: Publish crates
+
+# Publishes the meteroid-oss fork crates to crates.io in dependency order:
+#   meteroid-utoipa-config -> meteroid-utoipa-gen -> meteroid-utoipa
+# The order comes from [workspace.metadata.publish].order in the root Cargo.toml.
+#
+# How to cut a release:
+#   1. Bump the version(s) in the crate Cargo.toml files and commit.
+#   2. Tag it, e.g. `git tag meteroid-utoipa-v5.5.0 && git push origin meteroid-utoipa-v5.5.0`.
+#      (Or run this workflow manually from the Actions tab.)
+#
+# Requires a `CARGO_REGISTRY_TOKEN` repository secret: a crates.io API token with
+# publish scope (crates.io -> Account Settings -> API Tokens). Versions that are
+# already on crates.io are skipped, so re-running a failed release is safe.
+
+on:
+  push:
+    tags:
+      - "meteroid-utoipa-v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Package & verify only, do not upload to crates.io"
+        type: boolean
+        default: false
+
+concurrency:
+  group: publish-crates
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${DRY_RUN}" != "true" && -z "${CARGO_REGISTRY_TOKEN:-}" ]]; then
+            echo "::error::CARGO_REGISTRY_TOKEN secret is not set. Add it in repo Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+          metadata=$(cargo metadata --format-version=1 --no-deps)
+          publish_order=$(jq -r '.metadata.publish.order[]' <<<"$metadata")
+
+          for crate in $publish_order; do
+            version=$(jq -r --arg n "$crate" '.packages[] | select(.name == $n) | .version' <<<"$metadata")
+            echo "::group::$crate v$version"
+
+            # Idempotent: skip versions already live on crates.io.
+            code=$(curl -sS -o /dev/null -w '%{http_code}' \
+              "https://crates.io/api/v1/crates/${crate}/${version}" || echo "000")
+            if [[ "$code" == "200" ]]; then
+              echo "$crate $version is already published, skipping."
+              echo "- \`$crate\` \`$version\` — already published (skipped)" >> "$GITHUB_STEP_SUMMARY"
+              echo "::endgroup::"
+              continue
+            fi
+
+            flags=(-p "$crate")
+            [[ "$DRY_RUN" == "true" ]] && flags+=(--dry-run)
+
+            # cargo (>=1.66) blocks until the crate is queryable in the index, so the
+            # next dependent crate can resolve it. Retry to ride out transient hiccups.
+            attempt=1
+            max=5
+            until cargo publish "${flags[@]}"; do
+              if [[ $attempt -ge $max ]]; then
+                echo "::error::Failed to publish $crate after $max attempts."
+                exit 1
+              fi
+              wait=$((attempt * 15))
+              echo "publish failed; retry $attempt/$max after ${wait}s..."
+              sleep "$wait"
+              attempt=$((attempt + 1))
+            done
+
+            if [[ "$DRY_RUN" == "true" ]]; then
+              echo "- \`$crate\` \`$version\` — dry-run OK" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "- \`$crate\` \`$version\` — published" >> "$GITHUB_STEP_SUMMARY"
+            fi
+            echo "::endgroup::"
+          done
