@@ -4,11 +4,11 @@ This fork publishes five crates to crates.io, in dependency order:
 
 | crates.io name           | path             | import as (unchanged) | version |
 | ------------------------ | ---------------- | --------------------- | ------- |
-| `meteroid-utoipa-config` | `utoipa-config/` | `utoipa_config`       | 0.1.2   |
-| `meteroid-utoipa-gen`    | `utoipa-gen/`    | `utoipa_gen`          | 5.6.0   |
-| `meteroid-utoipa`        | `utoipa/`        | `utoipa`              | 5.6.0   |
-| `meteroid-utoipa-axum`   | `utoipa-axum/`   | `utoipa_axum`         | 0.2.0   |
-| `meteroid-utoipa-scalar` | `utoipa-scalar/` | `utoipa_scalar`       | 0.3.0   |
+| `meteroid-utoipa-config` | `utoipa-config/` | `utoipa_config`       | 0.1.3   |
+| `meteroid-utoipa-gen`    | `utoipa-gen/`    | `utoipa_gen`          | 6.0.0   |
+| `meteroid-utoipa`        | `utoipa/`        | `utoipa`              | 6.0.0   |
+| `meteroid-utoipa-axum`   | `utoipa-axum/`   | `utoipa_axum`         | 0.3.0   |
+| `meteroid-utoipa-scalar` | `utoipa-scalar/` | `utoipa_scalar`       | 0.4.0   |
 
 The crates.io **package** names are prefixed with `meteroid-`, but the **library**
 names are kept (`utoipa`, `utoipa_gen`, `utoipa_config`, `utoipa_axum`,
@@ -16,7 +16,7 @@ names are kept (`utoipa`, `utoipa_gen`, `utoipa_config`, `utoipa_axum`,
 
 ```toml
 [dependencies]
-meteroid-utoipa = "5"
+meteroid-utoipa = "6"
 ```
 
 ```rust
@@ -67,9 +67,9 @@ you probably forgot to bump the `Cargo.toml` version(s).
 
 The crates have different versions, but you only pick **one** tag, and it's
 just a trigger — it does not decide what gets published (that comes from each
-crate's `Cargo.toml`). Use the **`meteroid-utoipa` version**, e.g. `v5.6.0`. That
+crate's `Cargo.toml`). Use the **`meteroid-utoipa` version**, e.g. `v6.0.0`. That
 is the crate you and downstream depend on, so the release *is* "meteroid-utoipa
-5.6.0". The others ride along automatically:
+6.0.0". The others ride along automatically:
 
 - `meteroid-utoipa-gen` moves **in lockstep** with `meteroid-utoipa` (same number —
   the derive-macro crate and its runtime are a matched pair), so it is covered.
@@ -87,11 +87,11 @@ are independent of upstream `utoipa` — there is no collision on crates.io. Bum
 only the crates that carry a change of the fork's own (versus upstream
 juhaku/utoipa):
 
-- `meteroid-utoipa-gen` and `meteroid-utoipa` currently diverge from upstream 5.5.0
-  by two opt-in, backward-compatible features (`tagged_discriminator` and flatten
-  support in `IntoParams`), hence the minor bump to **5.6.0**.
-- `meteroid-utoipa-config` is unchanged from upstream, so it stays at **0.1.2**.
-- `meteroid-utoipa-axum` (**0.2.0**) and `meteroid-utoipa-scalar` (**0.3.0**) are
+- `meteroid-utoipa-gen` and `meteroid-utoipa` track upstream 6.0.0 plus two opt-in,
+  backward-compatible features (`tagged_discriminator` and flatten support in
+  `IntoParams`), and are published as **6.0.0**.
+- `meteroid-utoipa-config` is unchanged from upstream, so it matches it at **0.1.3**.
+- `meteroid-utoipa-axum` (**0.3.0**) and `meteroid-utoipa-scalar` (**0.4.0**) are
   the framework bindings, unchanged from upstream; they only depend on the renamed
   core. Bump them when their own `Cargo.toml` changes.
 

@@ -16,6 +16,20 @@ members = [
     "utoipa-actix-web",
 ]
 
+# cookie 0.18.1 (via rocket_http) does not compile against time 0.3.52+
+# (Parsable::parse gained a defaults argument). Cap until cookie releases a fix.
+# Keeps `just test` / fresh resolves working without committing Cargo.lock.
+[workspace.dependencies]
+time = { version = ">=0.3, <0.3.52" }
+
+[workspace.lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }
+
+[workspace.lints.clippy]
+# Enforced to guard against regressions of large stack allocations in generated
+# code (see https://github.com/juhaku/utoipa/issues/1454).
+large_stack_arrays = "deny"
+
 # Crates published to crates.io under the meteroid-oss fork, in dependency order.
 # The core three (`-config`, `-gen`, `meteroid-utoipa`) carry the fork's custom
 # features (e.g. `tagged_discriminator`); `-axum` and `-scalar` are the framework
