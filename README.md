@@ -138,7 +138,7 @@ Add dependency declaration to `Cargo.toml`.
 
 ```toml
 [dependencies]
-utoipa = "5"
+utoipa = "6"
 ```
 
 ## Examples

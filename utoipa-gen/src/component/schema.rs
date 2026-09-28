@@ -4,13 +4,12 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field,
-    Fields, FieldsNamed, FieldsUnnamed, Generics, Variant,
+    Fields, FieldsNamed, FieldsUnnamed, Generics, LitBool, Variant,
 };
 
 use crate::{
     component::features::attributes::{Rename, Title, ValueType},
     doc_comment::CommentAttributes,
-    parse_utils::LitBoolOrExprPath,
     token_stream::{as_tokens_or_diagnostics, quote_diagnostics, ToTokensDiagnostics},
     Array, AttributesExt, Diagnostics, OptionExt,
 };
@@ -322,7 +321,7 @@ struct NamedStructFieldOptions<'a> {
     renamed_field: Option<Cow<'a, str>>,
     required: Option<super::features::attributes::Required>,
     is_option: bool,
-    ignore: Option<LitBoolOrExprPath>,
+    ignore: Option<LitBool>,
 }
 
 impl NamedStructSchema {
@@ -366,7 +365,7 @@ impl NamedStructSchema {
                 match field_options {
                     Ok(Some(field_options)) => {
                         let should_always_ignore = match &field_options.ignore {
-                            Some(LitBoolOrExprPath::LitBool(bool)) => bool.value(),
+                            Some(bool) => bool.value(),
                             _ => false,
                         };
                         if should_always_ignore {
@@ -386,6 +385,9 @@ impl NamedStructSchema {
             .filter_map(|(field_options, field_rules, ..)| {
                 match (&mut field_options.property, field_rules.skip) {
                     (Property::Schema(schema), false) => {
+                        Some(std::mem::take(&mut schema.schema_references))
+                    }
+                    (Property::FlattenedMap(schema), false) => {
                         Some(std::mem::take(&mut schema.schema_references))
                     }
                     _ => None,
@@ -442,8 +444,8 @@ impl NamedStructSchema {
                     let mut property_tokens = quote! {
                         object = object.property(#name, #field_schema)
                     };
-                    let component_required =
-                        !is_option && super::is_required(field_rules, &container_rules);
+                    let component_required = (!is_option || field_rules.deserialize_with)
+                        && super::is_required(field_rules, &container_rules);
                     let required = match (required, component_required) {
                         (Some(required), _) => required.is_true(),
                         (None, component_required) => component_required,
@@ -456,18 +458,9 @@ impl NamedStructSchema {
                     }
 
                     object_tokens.extend(match ignore {
-                        Some(LitBoolOrExprPath::LitBool(bool)) => quote_spanned! {
+                        Some(bool) => quote_spanned! {
                             bool.span() => if !#bool {
                                 #property_tokens;
-                            }
-                        },
-                        Some(LitBoolOrExprPath::ExprPath(path)) => quote_spanned! {
-                            path.span() => {
-                                utoipa::__dev::warn_deprecated_ignore_fn_pattern();
-
-                                if !#path() {
-                                    #property_tokens;
-                                }
                             }
                         },
                         None => quote! { #property_tokens; },
